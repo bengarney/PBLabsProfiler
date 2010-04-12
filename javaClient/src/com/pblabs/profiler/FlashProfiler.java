@@ -97,11 +97,6 @@ public class FlashProfiler {
 		display.dispose ();
 	}
 	
-	public static void spawnDataWindow()
-	{
-
-	}
-	
 	public static void initNetPort() throws IOException
 	{
         ByteBuffer.setUseDirectBuffers(false);
