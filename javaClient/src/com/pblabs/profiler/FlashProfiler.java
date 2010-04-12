@@ -27,6 +27,8 @@ public class FlashProfiler {
 	private static final org.slf4j.Logger log = LoggerFactory.getLogger(FlashProfiler.class);
 	
 	/**
+	 * 
+	 * On OS X, run with VM arg -XstartOnFirstThread
 	 * @param args
 	 */
 	public static void main(String[] args) {
