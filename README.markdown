@@ -1,7 +1,7 @@
 PBLabsProfiler
 ==============
 
-This is a utilitarian profiler for use with Flash. It works with the with the 
+This is a utilitarian profiler for use with Flash. It works with the
 [flash.sampler](http://livedocs.adobe.com/flash/9.0/ActionScriptLangRefV3/flash/sampler/package-detail.html) API.
 
 The AS3 profiling stub is based on http://github.com/osi/flash-profiler. The Java client is not.
