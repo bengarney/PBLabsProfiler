@@ -30,6 +30,6 @@ Usage
     MaxWarnings=1000000
     TraceOutputBuffered=1
 
-2. Add *Agent.swf* to the list of trusted files using the Flash Player Settings Manager here: http://www.macromedia.com/support/documentation/en/flashplayer/help/settings_manager04a.html#119065
+2. Add *Agent.swf* to the list of trusted files using the Flash Player Settings Manager [here](http://www.macromedia.com/support/documentation/en/flashplayer/help/settings_manager04a.html#119065)
 3. Launch the FlashProfiler Java application. You may have to pass the -XstartOnFirstThread command line/VM option for it to work on OS X.
 4. Open Flash content with the Flash debug player active. The profiler will automatically open new windows for each profiled SWF.
