@@ -9,6 +9,8 @@
     <property name="build" location="build"/>
     <property name="dist" location="dist"/>
 
+	
+
     <target name="init">
         <!-- Create the time stamp -->
         <tstamp/>
@@ -30,9 +32,19 @@
     </target>
     
     <target name="dist" depends="compile" description="generate the distribution">
+        <!-- Nuke the dist folder. -->
+        <delete dir="${dist}"/>
+
         <!-- Create the distribution directory -->
         <mkdir dir="${dist}"/>
-        
+
+       	<!-- Do the markdown processing. -->
+		<java classname="com.petebevin.markdown.MarkdownProcessor" 
+			classpath="./markdownj-1.0.2b4-0.3.0.jar"
+			failonerror="true" error="markdown.log"
+			input="README.markdown" output="README.html">
+		</java>
+
         <!-- Put everything in the PBLabsProfiler.jar file -->
         <jar jarfile="${dist}/PBLabsProfiler.jar" basedir="${build}">
             <zipfileset src="javaClient/src/mina-core-1.1.7.jar" includes="**/*.*"/>
