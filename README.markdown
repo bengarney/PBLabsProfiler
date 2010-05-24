@@ -1,7 +1,7 @@
 PBLabsProfiler
 ==============
 
-This is a utilitarian profiler for use with Flash. It works with the with the 
+This is a utilitarian profiler for use with Flash. It works with the
 [flash.sampler](http://livedocs.adobe.com/flash/9.0/ActionScriptLangRefV3/flash/sampler/package-detail.html) API.
 
 The AS3 profiling stub is based on http://github.com/osi/flash-profiler. The Java client is not.
@@ -29,7 +29,7 @@ Usage
     ErrorReportingEnable=1
     MaxWarnings=1000000
     TraceOutputBuffered=1
-    
-2. Add *Agent.swf* to your local security domain. See [previous PDF](http://www.adobe.com/devnet/flashplayer/articles/flash_player_admin_guide/flash_player_admin_guide.pdf).
+
+2. Add *Agent.swf* to the list of trusted files using the Flash Player Settings Manager [here](http://www.macromedia.com/support/documentation/en/flashplayer/help/settings_manager04a.html#119065)
 3. Launch the FlashProfiler Java application. You may have to pass the -XstartOnFirstThread command line/VM option for it to work on OS X.
 4. Open Flash content with the Flash debug player active. The profiler will automatically open new windows for each profiled SWF.
