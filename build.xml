@@ -1,0 +1,54 @@
+<project name="PBLabsProfiler" default="dist" basedir=".">
+    <description>
+        A utilitarian profiler for use with Flash. It works with the flash.sampler API
+    </description>
+  <!-- set global properties for this build -->
+  <property name="src" location="javaClient/src"/>
+  <property name="build" location="build"/>
+  <property name="dist"  location="dist"/>
+
+  <target name="init">
+    <!-- Create the time stamp -->
+    <tstamp/>
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir="${build}"/>
+  </target>
+
+  <target name="compile" depends="init"
+        description="compile the source " >
+    <!-- Compile the java code from ${src} into ${build} -->
+    <javac srcdir="${src}" destdir="${build}">
+     <classpath>
+      <pathelement path="${classpath}"/>
+      <fileset dir="./javaClient/src">
+      <include name="*.jar"/>
+      </fileset>
+    </classpath>
+    </javac>
+  </target>
+
+  <target name="dist" depends="compile"
+        description="generate the distribution" >
+    <!-- Create the distribution directory -->
+    <mkdir dir="${dist}"/>
+
+    <!-- Put everything in the PBLabsProfiler.jar file -->
+    <jar jarfile="${dist}/PBLabsProfiler.jar" basedir="${build}">
+    <zipfileset src="javaClient/src/mina-core-1.1.7.jar" includes="**/*.*"/>
+    <zipfileset src="javaClient/src/slf4j-api-1.5.11.jar" includes="**/*.*"/>
+    <zipfileset src="javaClient/src/slf4j-jdk14-1.5.11.jar" includes="**/*.*"/>
+    <zipfileset src="javaClient/src/swt-debug.jar" includes="**/*.*"/>
+    <manifest>
+        <attribute name="Main-Class" value="com.pblabs.profiler.FlashProfiler"/>
+<attribute name="Class-Path" value="./"/>
+    </manifest>
+    </jar>
+  </target>
+
+  <target name="clean"
+        description="clean up" >
+    <!-- Delete the ${build} and ${dist} directory trees -->
+    <delete dir="${build}"/>
+    <delete dir="${dist}"/>
+  </target>
+</project>
