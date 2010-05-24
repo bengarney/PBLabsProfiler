@@ -31,5 +31,9 @@ Usage
     TraceOutputBuffered=1
 
 2. Add *Agent.swf* to the list of trusted files using the Flash Player Settings Manager [here](http://www.macromedia.com/support/documentation/en/flashplayer/help/settings_manager04a.html#119065)
-3. Launch the FlashProfiler Java application. You may have to pass the -XstartOnFirstThread command line/VM option for it to work on OS X.
-4. Open Flash content with the Flash debug player active. The profiler will automatically open new windows for each profiled SWF.
+3. Make PBLabsProfiler.sh executable with:
+
+    chmod u+x PBLabsProfiler.sh
+    
+4. Launch the FlashProfiler Java application. You may have to pass the -XstartOnFirstThread command line/VM option for it to work on OS X.  -d32 may also be required. If you run the command with ./PBLabsProfiler.sh it should just work.
+5. Open Flash content with the Flash debug player active/installed. The profiler will automatically open new windows for each profiled SWF. Currently closing windows results in a crash.
