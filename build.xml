@@ -60,7 +60,7 @@
         <!-- Copy related assets. -->
         <copy file="flashStub/Agent.swf" tofile="${dist}/Agent.swf"/>
         <copy file="PBLabsProfiler.sh" tofile="${dist}/PBLabsProfiler.sh"/>
-        <copy file="README.markdown" tofile="${dist}/README.markdown"/>
+        <copy file="README.html" tofile="${dist}/README.html"/>
         
         <!-- Prep build. -->
         <zip destfile="./PBLabsProfiler.zip" basedir="${dist}" level="9"/>
