@@ -46,11 +46,21 @@
 		</java>
 
         <!-- Put everything in the PBLabsProfiler.jar file -->
-        <jar jarfile="${dist}/PBLabsProfiler.jar" basedir="${build}">
+        <jar jarfile="${dist}/PBLabsProfiler-OSX.jar" basedir="${build}">
             <zipfileset src="javaClient/src/mina-core-1.1.7.jar" includes="**/*.*"/>
             <zipfileset src="javaClient/src/slf4j-api-1.5.11.jar" includes="**/*.*"/>
             <zipfileset src="javaClient/src/slf4j-jdk14-1.5.11.jar" includes="**/*.*"/>
             <zipfileset src="javaClient/src/swt-debug.jar" includes="**/*.*"/>
+            <manifest>
+                <attribute name="Main-Class" value="com.pblabs.profiler.FlashProfiler"/>
+                <attribute name="Class-Path" value="./"/>
+            </manifest>
+        </jar>
+        <jar jarfile="${dist}/PBLabsProfiler-Win32.jar" basedir="${build}">
+            <zipfileset src="javaClient/src/mina-core-1.1.7.jar" includes="**/*.*"/>
+            <zipfileset src="javaClient/src/slf4j-api-1.5.11.jar" includes="**/*.*"/>
+            <zipfileset src="javaClient/src/slf4j-jdk14-1.5.11.jar" includes="**/*.*"/>
+            <zipfileset src="javaClient/src/swt-debug-win32.jar" includes="**/*.*"/>
             <manifest>
                 <attribute name="Main-Class" value="com.pblabs.profiler.FlashProfiler"/>
                 <attribute name="Class-Path" value="./"/>

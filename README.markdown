@@ -9,7 +9,7 @@ Prerequisites
 
 You need to be on a supported OS. Currently the prebuilt binary only works on OS X. (See the *Hacking PBLabsProfiler* section below for details on building for other platforms.)
 
-You need to have a recent JRE installed. We have been using Java 2 Runtime Edition 1.5. If you are on OS X you already have this.
+You need to have a recent JRE installed. We have been using Java 2 Runtime Edition 1.5. If you are on OS X you already have this. If you are on windows, (get the most recent JRE)[http://java.sun.com/].
 
 Running The Binary
 ------------------
@@ -17,17 +17,23 @@ Running The Binary
 If you have received a prepackaged ZIP with a JAR in it, you do not need to compile any files to use the profiler. Follow these steps:
  
 1. Unzip the PBLabsProfiler.zip to a location of your choosing.
-2. Open the terminal and run these commands:
+2. If you are on _Mac_, open the terminal and run these commands:
 
 	`chmod u+x PBLabsProfiler.sh`
 	
 	`./PBLabsProfiler.sh`
 
+   If you are on _Windows_, launch the windows JAR with the following command:
+
+     `javaw PBLabsProfiler-Win32.jar`
+
+   You may also be able to double click the JAR and launch it.
+
 3. Confirm that the PBLabsProfiler app has come up and shown its UI. You should see output like the following:
 
     `INFO: PBLabs Profiler server started on localhost:4262`
 
-4. Close all web browsers and Flash Player instances.
+4. Close all web browsers and Flash Player instances. *mm.cfg* is only checked when Flash Player starts globally. You may need to modify the mm.cfg file and restart your system.
 5. Find [mm.cfg](http://www.adobe.com/devnet/flashplayer/articles/flash_player_admin_guide/flash_player_admin_guide.pdf) (see section 3), and:
   * Add a line like: `PreloadSwf=/path/to/PBLabsProfiler/Agent.swf`
   * You might want to turn on logging to a file, it makes debugging the stub a great deal simpler. Mine reads like this:
