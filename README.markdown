@@ -4,9 +4,9 @@ PBLabsProfiler Beta
 This is a utilitarian profiler for use with Flash. It works with the
 [flash.sampler](http://livedocs.adobe.com/flash/9.0/ActionScriptLangRefV3/flash/sampler/package-detail.html) API.
 
-The PBLabsProfiler is licensed under the [GPLv3](http://www.gnu.org/licenses/gpl.html). Copyright is held by PushButton Labs, LLC. If you'd like to use it under a different license please contact us at engine AT pushbuttonlabs DOT com.
+The PBLabsProfiler is licensed under the [GPLv3](http://www.gnu.org/licenses/gpl.html). The code is (c) 2010 Ben Garney. If you'd like to use it under a different license please contact Ben at ben DOT garney AT gmail DOT com.
 
-There is an [official  forum for discussion, troubleshooting, and announcements](http://pushbuttonengine.com/forum/viewforum.php?f=16) on the [PushButton Engine site](http://www.pushbuttonengine.com).
+There is an [official  forum for discussion, troubleshooting, and announcements](http://pushbuttonengine.com/forum/viewforum.php?f=16) on the [PushButton Engine site](http://www.pushbuttonengine.com). Thanks to PushButton Labs for donating forum space.
 
 Prerequisites
 -------------
