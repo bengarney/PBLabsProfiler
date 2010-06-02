@@ -1,3 +1,7 @@
+// Licensed under the Apache Software License v2
+// Text available at http://www.apache.org/licenses/LICENSE-2.0
+// Copyright 2009 by Peter Royal <peter.royal@pobox.com>
+// Copyright 2010 by Ben Garney <ben.garney@gmail.com>
 package {
     
     import flash.display.Sprite;
