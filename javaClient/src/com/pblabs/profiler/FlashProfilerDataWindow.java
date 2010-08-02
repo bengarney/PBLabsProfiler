@@ -1,12 +1,17 @@
 package com.pblabs.profiler;
 
+import java.io.IOException;
 import java.util.Enumeration;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.KeyListener;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.RowLayout;
+import org.eclipse.swt.widgets.Menu;
+import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
@@ -38,6 +43,45 @@ public class FlashProfilerDataWindow {
 		shell.setText("PBLabs Flash Profiler");
 		shell.setLayout(new FillLayout());
 		
+	    Menu menu = new Menu(shell, SWT.BAR);
+	    shell.setMenuBar(menu);
+	    
+	    Menu fileMenu = new Menu(menu);
+
+	    MenuItem fileMenuItem = new MenuItem(menu, SWT.CASCADE);
+	    fileMenuItem.setText("File");
+	    fileMenuItem.setMenu(fileMenu);
+	    
+	    MenuItem startItem = new MenuItem(fileMenu, SWT.NONE);
+	    startItem.setText("Start Sampling");
+	    MenuItem pauseItem = new MenuItem(fileMenu, SWT.NONE);
+	    pauseItem.setText("Stop Sampling");
+
+	    
+	    startItem.addSelectionListener(new SelectionAdapter()
+	    {
+	    	@Override
+	    	public void widgetSelected(SelectionEvent e) {
+	    		try {
+	    			handler.sendStart();
+	    		} catch (IOException ex) {
+	    			ex.printStackTrace();
+	    		}
+	    	}
+	    });
+
+	    pauseItem.addSelectionListener(new SelectionAdapter()
+	    {
+	    	@Override
+	    	public void widgetSelected(SelectionEvent e) {
+	    		try {
+	    			handler.sendPause();
+	    		} catch (IOException ex) {
+	    			ex.printStackTrace();
+	    		}
+	    	}
+	    });
+	    
 		RowLayout rowLayout = new RowLayout();
   		rowLayout.wrap = true;
   		rowLayout.pack = false;
@@ -85,11 +129,15 @@ public class FlashProfilerDataWindow {
 		tcPercent1.setWidth(50);
 
 		TreeColumn tcPercent2 = new TreeColumn(profilerTree, SWT.RIGHT);
-		tcPercent2.setText("Allocs");
+		tcPercent2.setText("Total Allocs");
 		tcPercent2.setWidth(50);
 
+		TreeColumn tcPercent3 = new TreeColumn(profilerTree, SWT.RIGHT);
+		tcPercent3.setText("Self Allocs");
+		tcPercent3.setWidth(50);
+		
 		rootItem = new TreeItem(profilerTree, 0);
-		rootItem.setText(new String[] { "Root",  "", "", ""});
+		rootItem.setText(new String[] { "Root",  "", "", "", ""});
 		
 		shell.open();
 	}
@@ -114,6 +162,7 @@ public class FlashProfilerDataWindow {
 			
 			subSample.displayNode.setText(new String[] 
                  { key,  String.valueOf(subSample.totalCount), String.valueOf(subSample.selfCount),
+					String.valueOf(subSample.totalAlloc),
 					String.valueOf(subSample.alloc) });			
 			
 			recursiveTreeBuild(subSample.displayNode, subSample);

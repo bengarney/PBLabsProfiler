@@ -1,5 +1,6 @@
 package com.pblabs.profiler;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -13,7 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ProfilerServerHandler extends StreamIoHandler{
-	
+    public static int MAX_INT = Integer.MAX_VALUE-1;
+    public static String SAMPLE_DONE = "SAMPLE-DONE";
+    
     protected void processStreamIo(IoSession session, InputStream in, OutputStream out)
     {
     	new Worker(in, out, session).start();
@@ -30,14 +33,17 @@ public class ProfilerServerHandler extends StreamIoHandler{
     	public int samplesOnClient = 0;
     	public int receivedSamples = 0;
     	
-        private final InputStream in;
-        private final OutputStream out;
-
+        private NetStringCache netStringCache = new NetStringCache();
+      
+    	private DataInputStream messageBytes = null;
+    	private DataOutputStream commandBytes = null;
+    	
         public Worker(InputStream in, OutputStream out, IoSession session) {
             setDaemon(true);
-            this.in = in;
-            this.out = out;
 
+        	messageBytes = new DataInputStream(new BufferedInputStream(in));
+        	commandBytes = new DataOutputStream(out);
+        	
             log = LoggerFactory.getLogger("Profiler Session " + session.getRemoteAddress().toString());
     		log.info("Got connection!");
 
@@ -45,19 +51,35 @@ public class ProfilerServerHandler extends StreamIoHandler{
     		dataWindow = new FlashProfilerDataWindow(this);
         }
         
+        public void sendStart() throws IOException
+        {
+    		log.info("Sending sampling start.");
+        	commandBytes.writeShort(0x4204);
+        	commandBytes.flush();
+        }
+        
+        public void sendPause() throws IOException
+        {
+    		log.info("Sending sampling stop.");
+        	commandBytes.writeShort(0x4208);
+        	commandBytes.flush();
+        }
+        
         public void run()
         {
-        	DataInputStream messageBytes = new DataInputStream(in);
-        	DataOutputStream commandBytes = new DataOutputStream(out);
+
         	
         	try
         	{
             	// Send a sampling start.
+        		/*
         		log.info("Sending sampling start.");
             	commandBytes.writeShort(0x4204);
             	commandBytes.flush();
-
-/*            	// Sleep for ten seconds...
+        		*/
+        		
+        		/*
+            	// Sleep for ten seconds...
             	sleep(60*1000);
             	
             	// Send a sampling stop.
@@ -90,6 +112,7 @@ public class ProfilerServerHandler extends StreamIoHandler{
     			}
     			catch(EOFException e)
     			{
+    				e.printStackTrace();
     				log.error("Ran off end of stream; terminating.");
     				break;
     			}
@@ -109,11 +132,42 @@ public class ProfilerServerHandler extends StreamIoHandler{
     		}
         }
         
-        public void parseMessage(DataInputStream messageBytes) throws CharacterCodingException, IOException
+        /**
+         * Return a BitStream for the sample if the complete sample
+         * is there. Otherwise, reset the stream and return null.
+         * 
+         * @param messageBytes
+         * @return
+         * @throws IOException
+         */
+        private BitStream getSampleBitStream(DataInputStream messageBytes) throws IOException
         {
+ 			long incomingSampleSize = 0xFFFFFFFFL & messageBytes.readInt();  					
+
+			// Make sure we have the whole sample
+			if (messageBytes.available() < incomingSampleSize)
+			{
+				//log.info("Not enough bytes for message");
+				messageBytes.reset();
+				return null;
+			}  
+			
+			byte[] bytes = new byte[(int)incomingSampleSize];
+			messageBytes.read(bytes,0,(int)incomingSampleSize);
+			
+			BitStream bitStream = new BitStream((int)incomingSampleSize, bytes);
+			bitStream.setStringCache(netStringCache);  
+			
+			return bitStream;
+        }
+        
+        public void parseMessage(DataInputStream messageBytes) throws CharacterCodingException, IOException, Exception
+        {
+        		messageBytes.mark(10);				
     			// Get the message type.
     			int type = messageBytes.readUnsignedShort();
-
+    	        BitStream bitStream = null;
+    	        
     			switch(type)
     			{
     			case 0x4201: // HELLO
@@ -148,42 +202,70 @@ public class ProfilerServerHandler extends StreamIoHandler{
     				break;
     				
     			case 0x4210: // new object sample.
+    				bitStream = getSampleBitStream(messageBytes);
+    				
+    				if (bitStream==null)
+    					break;
+
     				receivedSamples++;
-    				samplesOnClient = messageBytes.readInt();
-    				messageBytes.readInt();
-    				messageBytes.readInt();
-    				FlashIoUtils.readFlashString(messageBytes);
+    				
+    				samplesOnClient = bitStream.readRangedInt(0, Integer.MAX_VALUE-1);
+    				int time2 = bitStream.readRangedInt(0,MAX_INT);
+    				int objid = bitStream.readRangedInt(0,MAX_INT);
+    				String id = bitStream.readCachedString();   				
     				
     				SampleStack ss = new SampleStack();
-    				ss.read(messageBytes);
-
+    				ss.read(bitStream);
+    				
     				// Accumulate the data.
     				synchronized(sampleRoot)
     				{
         				sampleRoot.insert(0, 1, 0, ss);    					
     				}
     				
+    				String check = bitStream.readCachedString();
+    				// log.info(check);
+    				if (check==null || !check.equals(SAMPLE_DONE)) {
+    					log.error("Missing message SAMPLE-DONE");
+    				}
+    				
     				break;
     				
     			case 0x4211: // delete object sample.
+    				bitStream = getSampleBitStream(messageBytes);
+    				if (bitStream==null)
+    					break;
+    				
     				receivedSamples++;
-    				samplesOnClient = messageBytes.readInt();
-    				messageBytes.readInt();
-    				messageBytes.readInt();
-    				messageBytes.readInt();
+    				samplesOnClient = bitStream.readRangedInt(0,MAX_INT);
+    				bitStream.readRangedInt(0,MAX_INT);
+    				bitStream.readRangedInt(0,MAX_INT);
+    				bitStream.readRangedInt(0,MAX_INT);
 
     				SampleStack ss1 = new SampleStack();
-    				ss1.read(messageBytes);
+    				ss1.read(bitStream);
+    				
+    				if (!bitStream.readCachedString().equals(SAMPLE_DONE))
+    					throw new Exception("Bad sample!");
     				
     				break;
     				
     			case 0x4212: // execution sample.
+    				bitStream = getSampleBitStream(messageBytes);
+    				if (bitStream==null)
+    					break;
+    				
     				receivedSamples++;
-    				samplesOnClient = messageBytes.readInt();
-    				int time = messageBytes.readInt();
+    				samplesOnClient = bitStream.readRangedInt(0,MAX_INT);
+    				//log.info("Samples on client:"+samplesOnClient);
+    				int time = bitStream.readRangedInt(0,MAX_INT);
+    				//log.info("time:"+time);
     				SampleStack ss2 = new SampleStack();
-    				ss2.read(messageBytes);
-
+    				ss2.read(bitStream);
+    				
+    				if (!bitStream.readCachedString().equals(SAMPLE_DONE))
+    					throw new Exception("Bad sample!");
+    			
     				// Accumulate the data.
     				synchronized(sampleRoot)
     				{
@@ -208,7 +290,7 @@ public class ProfilerServerHandler extends StreamIoHandler{
     					}
     				});
     			}
-    		}        	
-        }
+        	}
+    	}
     }
 

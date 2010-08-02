@@ -11,6 +11,8 @@ public class ExecutionSample {
 	public int selfCount = 0;
 
 	public int alloc = 0, free = 0;
+
+	public int totalAlloc = 0;
 	
 	public int cumulativeTime = 0;
 
@@ -36,6 +38,7 @@ public class ExecutionSample {
 		{
 			if(time != 0)
 				walk.totalCount++;
+			walk.totalAlloc += alloc;
 			walk = walk.getChild(stack.frameList.get(i).name);
 		}
 		
