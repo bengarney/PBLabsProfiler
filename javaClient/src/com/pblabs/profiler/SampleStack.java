@@ -8,6 +8,7 @@ public class SampleStack {
 	public Vector<SampleStackFrame> frameList = new Vector<SampleStackFrame>();
     public static int MAX_INT = Integer.MAX_VALUE-1;
     
+    public String allocType = null;
 	
 	public void read(BitStream messageBytes) throws CharacterCodingException, IOException
 	{

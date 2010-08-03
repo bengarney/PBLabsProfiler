@@ -65,6 +65,15 @@ public class ProfilerServerHandler extends StreamIoHandler{
         	commandBytes.flush();
         }
         
+        public void reset()
+        {
+        	synchronized (sampleRoot) {
+            	dataWindow.rebuildTree();
+            	sampleRoot = new ExecutionSample();		
+				dataWindow.rebuildTreeView(sampleRoot);    	
+			}
+        }
+        
         public void run()
         {
 
@@ -210,12 +219,14 @@ public class ProfilerServerHandler extends StreamIoHandler{
     				receivedSamples++;
     				
     				samplesOnClient = bitStream.readRangedInt(0, Integer.MAX_VALUE-1);
-    				int time2 = bitStream.readRangedInt(0,MAX_INT);
-    				int objid = bitStream.readRangedInt(0,MAX_INT);
-    				String id = bitStream.readCachedString();   				
+    				bitStream.readRangedInt(0,MAX_INT);
+    				bitStream.readRangedInt(0,MAX_INT);
+    				String allocationType = bitStream.readCachedString();   				
     				
     				SampleStack ss = new SampleStack();
     				ss.read(bitStream);
+    				
+    				ss.allocType = allocationType;
     				
     				// Accumulate the data.
     				synchronized(sampleRoot)
@@ -257,9 +268,7 @@ public class ProfilerServerHandler extends StreamIoHandler{
     				
     				receivedSamples++;
     				samplesOnClient = bitStream.readRangedInt(0,MAX_INT);
-    				//log.info("Samples on client:"+samplesOnClient);
     				int time = bitStream.readRangedInt(0,MAX_INT);
-    				//log.info("time:"+time);
     				SampleStack ss2 = new SampleStack();
     				ss2.read(bitStream);
     				

@@ -112,7 +112,7 @@ package
                      _socket.writeShort(0x4210);
                   }
                   else if (top is DeleteObjectSample)
-                  {                     //trace("Writing delete object sample");
+                  {
                      _socket.writeShort(0x4211);
                   }
                   else
@@ -153,10 +153,6 @@ package
                if (s && s.stack && s.stack.length > 0)
                {
                   var frame:StackFrame = s.stack[0];
-                  if (frame.name == "[abc-decode]")
-                     continue;
-                  if (frame.name.indexOf("mx.") == 0)
-                     continue;
                }
             }
             pendingSamples.push(s);
