@@ -51,16 +51,30 @@ public class ProfilerServerHandler extends StreamIoHandler{
     		dataWindow = new FlashProfilerDataWindow(this);
         }
         
+        public void logAndSetStatus(String msg)
+        {
+    		log.info(msg);
+    		// Refresh UI.
+    		final String statusMsg = msg;
+			FlashProfiler.display.asyncExec(new Runnable()
+			{
+				public void run()
+				{
+		    		dataWindow.setStatus(statusMsg);
+				}
+			});
+        }
+        
         public void sendStart() throws IOException
         {
-    		log.info("Sending sampling start.");
+        	logAndSetStatus("Sending sampling start.");
         	commandBytes.writeShort(0x4204);
         	commandBytes.flush();
         }
         
         public void sendPause() throws IOException
         {
-    		log.info("Sending sampling stop.");
+    		logAndSetStatus("Sending sampling stop.");
         	commandBytes.writeShort(0x4208);
         	commandBytes.flush();
         }
@@ -193,21 +207,21 @@ public class ProfilerServerHandler extends StreamIoHandler{
     				break;
     				
     			case 0x4205: // sampling start ack.
-    				log.info("Sampling started.");
+    				logAndSetStatus("Sampling started.");
     				break;
     				
     			case 0x4207: // sampling pause ack.
-    				log.info("Sampling paused.");
+    				logAndSetStatus("Sampling paused.");
     				break;
     				
     			case 0x4209: // sampling stop ack.
-    				log.info("Sampling stopped.");
+    				logAndSetStatus("Sampling stopped.");
     				break;
     				
     			case 0x420b: // Results from sampler.
     				long numIncoming = messageBytes.readInt();
     				expectedSamples += numIncoming;
-    				log.info("Getting " + numIncoming + " more samples, expecting " + expectedSamples + " more.");
+    				dataWindow.setStatus("Getting " + numIncoming + " more samples, expecting " + expectedSamples + " more.");
     				break;
     				
     			case 0x4210: // new object sample.
@@ -284,10 +298,8 @@ public class ProfilerServerHandler extends StreamIoHandler{
     				break;
     			}
     			
-    			if(receivedSamples % 100 == 0)
+    			if(receivedSamples > 0 && receivedSamples % 100 == 0)
     			{
-    				// Note process.
-    				log.info("Got " + receivedSamples + " so far. " + samplesOnClient + " left on client.");
     				receivedSamples++;
     				
     				// Refresh UI.
@@ -296,6 +308,8 @@ public class ProfilerServerHandler extends StreamIoHandler{
     					public void run()
     					{
     	    				dataWindow.rebuildTreeView(sampleRoot);    						
+    	    				// Note process
+    	    				dataWindow.setStatus("Got " + receivedSamples + " so far. " + samplesOnClient + " left on client.");
     					}
     				});
     			}

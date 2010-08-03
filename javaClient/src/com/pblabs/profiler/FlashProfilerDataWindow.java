@@ -12,15 +12,11 @@ import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Menu;
-import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
-import org.eclipse.swt.widgets.ToolBar;
-import org.eclipse.swt.widgets.ToolItem;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.swt.widgets.TreeItem;
@@ -32,6 +28,8 @@ public class FlashProfilerDataWindow {
 	public ProfilerServerHandler.Worker handler;
 
 	public Text additionalInfo;
+	
+	public Label statusLabel;
 	
 	public FlashProfilerDataWindow(ProfilerServerHandler.Worker _h)
 	{
@@ -119,6 +117,12 @@ public class FlashProfilerDataWindow {
   		additionalInfo = new Text(sashForm, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL);
   		additionalInfo.setEditable(false);
   		
+		Composite statusBar = new Composite(shell, SWT.NONE);
+		statusBar.setLayout(new FillLayout());
+		
+		statusLabel = new Label(statusBar, SWT.NONE);
+		statusLabel.setText("Press start to start sampling...                                          ");
+		
 		final FlashProfilerDataWindow fpdw = this;
 		profilerTree.addKeyListener(new KeyListener()
 		{
@@ -214,4 +218,8 @@ public class FlashProfilerDataWindow {
 		}
 	}
 	
+	public void setStatus(String text)
+	{
+		statusLabel.setText(text);
+	}
 }
