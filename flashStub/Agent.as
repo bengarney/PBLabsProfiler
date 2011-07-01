@@ -81,38 +81,22 @@ package
       
       private function printReport():void
       {
-          trace(PREFIX, "Total:");
-          var totalSum:int = 0;
-          for(var key:String in totalAllocated)
+          trace(PREFIX, "Memory Usage Report:");
+          
+          var reportMap:Dictionary = new Dictionary();
+          for(var id:* in allocatedIdToNewSample)
           {
-              if(totalAllocated[key] == 0 || isNaN(totalAllocated[key]))
-                 continue;
-                 
-             trace(PREFIX, "  " + key + " " + totalAllocated[key] + "    " + (totalAllocatedSize[key] / 1024.0).toFixed(2) + "kb");
-             totalSum += totalAllocatedSize[key];
+              reportMap[allocatedIdToType[id]] += getSize(allocatedIdToNewSample[id].object);
           }
-          trace(PREFIX, "   Total size = " + (totalSum / 1024.0).toFixed(2) + "kb")
-          trace(PREFIX, "Delta:");
-          var deltaSum:int = 0;
-          for(key in totalDelta)
+          
+          for(var type:String in reportMap)
           {
-              if(totalDelta[key] == 0 || isNaN(totalDelta[key]))
-                 continue;
-                 
-              trace(PREFIX, "  " + key + " " + totalDelta[key] + "    " + (totalDeltaSize[key] / 1024.0).toFixed(2) + "kb");
-              deltaSum += totalDeltaSize[key];
-              totalDelta[key] = 0;
-              totalDeltaSize[key] = 0;
-          }          
-          trace(PREFIX, "   Delta size = " + (deltaSum / 1024.0).toFixed(2) + "kb")
+              trace("   " + type + " " + (reportMap[type] / 1024.0).toFixed(2) + "kb");
+          }
       }
       
-      public var outstandingAllocs:Dictionary = new Dictionary();
-      public var outstandingAllocSize:Dictionary = new Dictionary();
-      public var totalAllocated:Dictionary = new Dictionary();
-      public var totalAllocatedSize:Dictionary = new Dictionary();
-      public var totalDelta:Dictionary = new Dictionary();
-      public var totalDeltaSize:Dictionary = new Dictionary();
+      public var allocatedIdToType:Dictionary = new Dictionary();
+      public var allocatedIdToNewSample:Dictionary = new Dictionary();
 
       private function grabSamples():void
       {
@@ -125,14 +109,8 @@ package
              var ns:NewObjectSample = s as NewObjectSample;
             if (ds)
             {
-                totalAllocated[outstandingAllocs[ds.id]]--;
-                if(outstandingAllocSize[ds.id] != ds.size)
-                   trace(PREFIX, "Saw deletion of " + outstandingAllocs[ds.id] + " at size " + ds.size + " but created at size " + outstandingAllocSize[ds.id])
-
-                outstandingAllocs[ds.id] = null;
-                delete outstandingAllocs[ds.id];
-
-                totalAllocatedSize[typeKey] -= ds.size;
+                delete allocatedIdToTypeMap[ns.id];
+                delete allocatedIdToNewSample[ns.id];
             }
             else if (ns)
             {
@@ -141,46 +119,13 @@ package
                if(ns.stack && ns.stack[0].toString() == "[activation-object]()")
                     typeKey = "[activation-object]";
                
-                // Sanity check for dupe ids.
-                if(outstandingAllocs[ns.id])
-                   trace(PREFIX, "Saw new sample for " + ns.id + " twice, old val was " + outstandingAllocs[ns.id] + " new val was " + typeKey);
-
-               // Note type for later accounting.
-               outstandingAllocs[ns.id] = typeKey;
-               outstandingAllocSize[ns.id] = ns.size;
-               
-               // Update total counts + sizes.
-               if(totalAllocated[typeKey] == null || isNaN(totalAllocated[typeKey]))
-                    totalAllocated[typeKey] = 0;
-               if(totalDelta[typeKey] == null || isNaN(totalDelta[typeKey]))
-                    totalDelta[typeKey] = 0;
-               if(totalDeltaSize[typeKey] == null || isNaN(totalDeltaSize[typeKey]))
-                    totalDeltaSize[typeKey] = 0;
-               if(totalAllocatedSize[typeKey] == null || isNaN(totalAllocatedSize[typeKey]))
-                     totalAllocatedSize[typeKey] = 0;
-
-               totalAllocated[typeKey]++;
-               totalDelta[typeKey]++;
-
-               totalAllocatedSize[typeKey] += ns.size;
-               totalDeltaSize[typeKey] += ns.size;
+               allocatedIdToTypeMap[ns.id] = typeKey;
+               allocatedIdToNewSample[ns.id] = ns;
             }
          }
+         
          trace("Clearing samples.");
          clearSamples();
       }
    }
 }
-
-
-/*
-if(typeKey == "[class BlobDatabase]")
-{
-    trace(PREFIX, "Saw BD!")
-    trace(PREFIX, "Size = " + ns.size);
-    trace(PREFIX, "object = " + ns.object);
-    trace(PREFIX, "type = " + ns.type);
-    trace(PREFIX, "stack = " + ns.stack);
-    trace(PREFIX, "stack[0] = " + ns.stack[0]);
-}
-*/
