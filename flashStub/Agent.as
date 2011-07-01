@@ -2,6 +2,9 @@
 // Text available at http://www.apache.org/licenses/LICENSE-2.0
 // Copyright 2009 by Peter Royal <peter.royal@pobox.com>
 // Copyright 2010 by Ben Garney <ben.garney@gmail.com>
+// Compile with:
+// /Applications/Adobe\ Flash\ Builder\ 4.5/sdks/4.5.0/bin/mxmlc -static-link-runtime-shared-libraries -debug Agent.as
+// or similar.
 package
 {
 
@@ -15,26 +18,11 @@ package
    import flash.net.Socket;
    import flash.sampler.*;
    import flash.system.System;
-   import flash.utils.ByteArray;
-   import flash.utils.Timer;
-   import flash.utils.getQualifiedClassName;
-   import flash.utils.getTimer;
+   import flash.utils.*;
 
    public class Agent extends Sprite
    {
-      private static const HOST:String = "localhost";
-
-      private static const PORT:int = 42624;
-
       private static const PREFIX:String = "[AGENT]";
-
-      private var _host:String;
-
-      private var _port:int;
-
-      private var _socket:Socket;
-
-      private var _connected:Boolean;
 
       private var _sampleSender:Timer;
 
@@ -44,292 +32,155 @@ package
 
       private var _sampling:Boolean = false;
 
-      public var pendingSamples:Array = [];
-
-      private var cache:NetStringCache = new NetStringCache();
-
-      public const MAX_INT:int = int.MAX_VALUE - 1;
-
-      private var samplesSent:int = 0;
-
-      private var _bitStream:BitStream = new BitStream(4000);
-
-      private var bytesSent:int = 0;
-
-      private var outputBytes:ByteArray = new ByteArray();
+      public var lastReportTime:int = 0;
 
       public function Agent()
       {
-         trace(PREFIX, "Loaded");
-
-         _host = loaderInfo.parameters["host"] || HOST;
-         _port = loaderInfo.parameters["port"] || PORT;
-
-         _socket = new Socket();
-         _socket.timeout = 240 * 1000;
-
-         _socket.addEventListener(SecurityErrorEvent.SECURITY_ERROR, fail);
-         _socket.addEventListener(IOErrorEvent.IO_ERROR, fail);
-         _socket.addEventListener(ProgressEvent.SOCKET_DATA, dataReceived);
-         _socket.addEventListener(Event.CONNECT, connected);
-         _socket.addEventListener(Event.CLOSE, close);
-
-         connect();
+         trace(PREFIX, "Loaded PBLabsProfiler Agent.");
 
          _sampleSender = new Timer(16);
          _sampleSender.addEventListener(TimerEvent.TIMER, samplePump);
          _sampleSender.start();
 
-
+         _sampling = true;
+         setSamplerCallback(samplePump);
+         startSampling();
+         
+         samplePump();
       }
 
-      private function samplePump(te:TimerEvent):void
+      private function samplePump(e:* = null):void
       {
+          trace(PREFIX, "Considering samples.");
+          
+         // Pause sampling.
          var wasSampling:Boolean = _sampling;
          if (_sampling)
+         {
             pauseSampling();
+           // trace(PREFIX, "Pausing sampling.");
+        }
 
+        // Print a report.
+        if(true) //getTimer() - lastReportTime > 5000)
+        {
+            printReport();
+            lastReportTime = getTimer();
+        }
+
+         // Dump acquired data.
          grabSamples();
 
-         // See if we can send some samples out.
-         if (_socket && _connected && pendingSamples.length > 0)
-         {
-            var numToSend:int = 5000 - 1;
-            while (numToSend && pendingSamples.length)
-            {
-               var top:* = pendingSamples.pop();
-
-               if (top is DeleteObjectSample)
-               {
-                  // Skip deletes, we don't care.
-                  continue;
-               }
-               else
-               {
-                  // Write the message type
-                  if (top is NewObjectSample)
-                  {
-                     _socket.writeShort(0x4210);
-                  }
-                  else if (top is DeleteObjectSample)
-                  {
-                     _socket.writeShort(0x4211);
-                  }
-                  else
-                  {
-                     _socket.writeShort(0x4212);
-                  }
-
-                  // Write the sample using the BitStream
-                  encodeSample(outputBytes, top, 0);
-                  _socket.writeUnsignedInt(outputBytes.length);
-                  _socket.writeBytes(outputBytes);
-
-                  samplesSent++;
-               }
-
-               numToSend--;
-
-               if (numToSend % 1000 == 0)
-                  _socket.flush();
-            }
-            _socket.flush();
-         }
-
+         // Resume sampling.
          if (wasSampling)
+         {
+             //trace(PREFIX, "Resuming sampling.");
             startSampling();
+         }
       }
+      
+      private function printReport():void
+      {
+          trace(PREFIX, "Total:");
+          var totalSum:int = 0;
+          for(var key:String in totalAllocated)
+          {
+              if(totalAllocated[key] == 0 || isNaN(totalAllocated[key]))
+                 continue;
+                 
+             trace(PREFIX, "  " + key + " " + totalAllocated[key] + "    " + (totalAllocatedSize[key] / 1024.0).toFixed(2) + "kb");
+             totalSum += totalAllocatedSize[key];
+          }
+          trace(PREFIX, "   Total size = " + (totalSum / 1024.0).toFixed(2) + "kb")
+          trace(PREFIX, "Delta:");
+          var deltaSum:int = 0;
+          for(key in totalDelta)
+          {
+              if(totalDelta[key] == 0 || isNaN(totalDelta[key]))
+                 continue;
+                 
+              trace(PREFIX, "  " + key + " " + totalDelta[key] + "    " + (totalDeltaSize[key] / 1024.0).toFixed(2) + "kb");
+              deltaSum += totalDeltaSize[key];
+              totalDelta[key] = 0;
+              totalDeltaSize[key] = 0;
+          }          
+          trace(PREFIX, "   Delta size = " + (deltaSum / 1024.0).toFixed(2) + "kb")
+      }
+      
+      public var outstandingAllocs:Dictionary = new Dictionary();
+      public var outstandingAllocSize:Dictionary = new Dictionary();
+      public var totalAllocated:Dictionary = new Dictionary();
+      public var totalAllocatedSize:Dictionary = new Dictionary();
+      public var totalDelta:Dictionary = new Dictionary();
+      public var totalDeltaSize:Dictionary = new Dictionary();
 
       private function grabSamples():void
       {
          // Called when we are about to overflow sampling storage.
          // So shove it somewhere and keep going... NEVER SURRENDER NEVER RETREAT!
-         for each (var s:Sample in getSamples())
+         var samples:* = getSamples();
+         for each (var s:Sample in samples)
          {
-            if (s is DeleteObjectSample)
-               continue;
-            if (s is NewObjectSample)
+             var ds:DeleteObjectSample = s as DeleteObjectSample;
+             var ns:NewObjectSample = s as NewObjectSample;
+            if (ds)
             {
-               if (s && s.stack && s.stack.length > 0)
-               {
-                  var frame:StackFrame = s.stack[0];
-               }
-            }
-            pendingSamples.push(s);
-         }
+                totalAllocated[outstandingAllocs[ds.id]]--;
+                if(outstandingAllocSize[ds.id] != ds.size)
+                   trace(PREFIX, "Saw deletion of " + outstandingAllocs[ds.id] + " at size " + ds.size + " but created at size " + outstandingAllocSize[ds.id])
 
+                outstandingAllocs[ds.id] = null;
+                delete outstandingAllocs[ds.id];
+
+                totalAllocatedSize[typeKey] -= ds.size;
+            }
+            else if (ns)
+            {
+               // Get type and compensate for activation objects.
+               var typeKey:String = ns.type.toString();
+               if(ns.stack && ns.stack[0].toString() == "[activation-object]()")
+                    typeKey = "[activation-object]";
+               
+                // Sanity check for dupe ids.
+                if(outstandingAllocs[ns.id])
+                   trace(PREFIX, "Saw new sample for " + ns.id + " twice, old val was " + outstandingAllocs[ns.id] + " new val was " + typeKey);
+
+               // Note type for later accounting.
+               outstandingAllocs[ns.id] = typeKey;
+               outstandingAllocSize[ns.id] = ns.size;
+               
+               // Update total counts + sizes.
+               if(totalAllocated[typeKey] == null || isNaN(totalAllocated[typeKey]))
+                    totalAllocated[typeKey] = 0;
+               if(totalDelta[typeKey] == null || isNaN(totalDelta[typeKey]))
+                    totalDelta[typeKey] = 0;
+               if(totalDeltaSize[typeKey] == null || isNaN(totalDeltaSize[typeKey]))
+                    totalDeltaSize[typeKey] = 0;
+               if(totalAllocatedSize[typeKey] == null || isNaN(totalAllocatedSize[typeKey]))
+                     totalAllocatedSize[typeKey] = 0;
+
+               totalAllocated[typeKey]++;
+               totalDelta[typeKey]++;
+
+               totalAllocatedSize[typeKey] += ns.size;
+               totalDeltaSize[typeKey] += ns.size;
+            }
+         }
+         trace("Clearing samples.");
          clearSamples();
-      }
-
-      private function dataReceived(e:ProgressEvent):void
-      {
-         if (_socket.bytesAvailable < 2)
-         {
-            // All commands are two-bytes.
-            return;
-         }
-
-         var command:uint = _socket.readUnsignedShort();
-
-         trace(PREFIX, "Received command", command);
-
-         switch (command)
-         {
-            case 0x4202:
-               _socket.writeShort(0x4203);
-               _socket.writeUnsignedInt(getTimer());
-               _socket.writeUnsignedInt(System.totalMemory);
-               _socket.flush();
-               return;
-            case 0x4204:
-               startSampling();
-               _sampling = true;
-               _samplingStarted = new Date().getTime() * 1000;
-               _socket.writeShort(0x4205);
-               _socket.flush();
-               return;
-            case 0x4206:
-               pauseSampling();
-               _sampling = false;
-               _socket.writeShort(0x4207);
-               _socket.flush();
-               return;
-            case 0x4208:
-               stopSampling();
-               clearSamples();
-               _sampling = false;
-               _socket.writeShort(0x4209);
-               _socket.flush();
-               return;
-
-            default:
-               _socket.writeShort(0x4200);
-               _socket.writeUTF("UNKNOWN COMMAND");
-               _socket.flush();
-               return;
-         }
-      }
-
-      private function encodeSample(out:ByteArray, s:Sample, sampleTimeOffset:Number):void
-      {
-         var time:Number = _baseTime * 1000 + (s.time - sampleTimeOffset);
-
-         _bitStream.reset();
-         out.position = 0;
-
-         _bitStream.stringCache = cache;
-
-         if (s is NewObjectSample)
-         {
-            var nos:NewObjectSample = s as NewObjectSample;
-            _bitStream.writeRangedInt(pendingSamples.length, 0, MAX_INT);
-            _bitStream.writeRangedInt(time, 0, MAX_INT);
-            _bitStream.writeRangedInt(nos.id, 0, MAX_INT);
-            _bitStream.writeCachedString(getQualifiedClassName(nos.type) + "");
-         }
-         else if (s is DeleteObjectSample)
-         {
-            /*
-               var dos:DeleteObjectSample = s as DeleteObjectSample;
-
-               _bitStream.writeRangedInt(pendingSamples.length, 0,MAX_INT);
-               _bitStream.writeRangedInt(time, 0,MAX_INT);
-               _bitStream.writeRangedInt(dos.id, 0,MAX_INT);;
-               _bitStream.writeRangedInt(dos.size, 0,MAX_INT);
-             */
-            throw new Error("not implemented");
-
-         }
-         else
-         {
-
-            _bitStream.writeRangedInt(pendingSamples.length, 0, MAX_INT);
-            _bitStream.writeRangedInt(time, 0, MAX_INT);
-         }
-
-         var stack:Array = s.stack;
-
-         if (null == stack)
-         {
-            _bitStream.writeRangedInt(0, 0, MAX_INT);
-         }
-         else
-         {
-            _bitStream.writeRangedInt(stack.length, 0, MAX_INT);
-
-            for each (var frame:StackFrame in stack)
-            {
-               _bitStream.writeCachedString(frame.name + "");
-
-               if (frame.file == null)
-               {
-                  _bitStream.writeCachedString("empty");
-                  _bitStream.writeRangedInt(0, 0, MAX_INT);
-               }
-               else
-               {
-                  _bitStream.writeCachedString(frame.file);
-                  _bitStream.writeRangedInt(frame.line, 0, MAX_INT);
-               }
-            }
-         }
-
-         _bitStream.writeCachedString("SAMPLE-DONE");
-
-         var numBytes:int = _bitStream.getLengthInBytes();
-
-         bytesSent += numBytes;
-
-         _bitStream.getByteArray().readBytes(out, 0, numBytes);
-      }
-
-      private function connect():void
-      {
-         trace(PREFIX, "Trying to connect to", _host, ":", _port);
-
-         try
-         {
-            _socket.connect(_host, _port);
-         }
-         catch (e:Error)
-         {
-            trace(PREFIX, "Unable to connect", e);
-         }
-      }
-
-      private function connected(e:Event):void
-      {
-         trace(PREFIX, "Connected");
-
-         _baseTime = new Date().getTime();
-         var seconds:uint = _baseTime / 1000;
-         var timer:uint = getTimer();
-
-         _socket.writeShort(0x4201);
-         _socket.writeUnsignedInt(seconds);
-         _socket.writeShort(_baseTime - (seconds * 1000));
-         _socket.writeUnsignedInt(timer);
-         _socket.flush();
-
-         trace(PREFIX, _baseTime, seconds, _baseTime - (seconds * 1000), timer);
-
-         _connected = true;
-      }
-
-      private function close(e:Event):void
-      {
-         _connected = false;
-
-         trace(PREFIX, "Disconnected");
-      }
-
-      private function fail(e:Event):void
-      {
-         trace(PREFIX, "Communication failure", e);
-
-         _socket.close();
-         _connected = false;
       }
    }
 }
 
+
+/*
+if(typeKey == "[class BlobDatabase]")
+{
+    trace(PREFIX, "Saw BD!")
+    trace(PREFIX, "Size = " + ns.size);
+    trace(PREFIX, "object = " + ns.object);
+    trace(PREFIX, "type = " + ns.type);
+    trace(PREFIX, "stack = " + ns.stack);
+    trace(PREFIX, "stack[0] = " + ns.stack[0]);
+}
+*/
