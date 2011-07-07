@@ -9,6 +9,7 @@ package
 {
 
    import flash.display.Sprite;
+   import flash.display.BitmapData;
    import flash.events.DataEvent;
    import flash.events.Event;
    import flash.events.IOErrorEvent;
@@ -44,6 +45,7 @@ package
 
          _sampling = true;
          setSamplerCallback(samplePump);
+         sampleInternalAllocs(false);
          startSampling();
          
          samplePump();
@@ -62,7 +64,7 @@ package
         }
 
         // Print a report.
-        if(true) //getTimer() - lastReportTime > 5000)
+        if(getTimer() - lastReportTime > 5000)
         {
             printReport();
             lastReportTime = getTimer();
@@ -80,22 +82,64 @@ package
       }
       
       private function printReport():void
-      {
-          trace(PREFIX, "Memory Usage Report:");
-          
-          var reportMap:Dictionary = new Dictionary();
+      {          
+          var totalSize:Number = 0, totalCount:int = 0;
+          var reportMapSize:Dictionary = new Dictionary();
+          var reportMapCount:Dictionary = new Dictionary();
+
           for(var id:* in allocatedIdToNewSample)
           {
-              reportMap[allocatedIdToType[id]] += getSize(allocatedIdToNewSample[id].object);
+              var typeKey:String = allocatedIdToTypeMap[id];
+              if(!reportMapSize[typeKey])
+                reportMapSize[typeKey] = 0;
+              if(!reportMapCount[typeKey])
+                reportMapCount[typeKey] = 0;
+
+              if(allocatedIdToNewSample[id].object == null)
+              {
+                  trace(PREFIX, "Discarding sample #" + id + " due to null object.");
+                  delete allocatedIdToNewSample[id];
+                  continue;
+              }
+              reportMapSize[typeKey] += getSize(allocatedIdToNewSample[id].object);
+              reportMapCount[typeKey] ++;
+
+              if(allocatedIdToNewSample[id].object is BitmapData)
+              {
+                var bd:BitmapData = allocatedIdToNewSample[id].object as BitmapData;
+                try
+                {
+                  reportMapSize[typeKey] += bd.width * bd.height * 4;                  
+                }
+                catch(e:*) 
+                {
+                  trace(PREFIX, "Unable to tally bitmapdata with id " + id);
+                }
+              }
+              
+              totalCount++;
           }
           
-          for(var type:String in reportMap)
+          var reportList:Array = new Array();
+          
+          for(var type:String in reportMapSize)
           {
-              trace("   " + type + " " + (reportMap[type] / 1024.0).toFixed(2) + "kb");
+              totalSize += reportMapSize[type];
+              reportList.push("   " + type + " " 
+                  + (reportMapSize[type] / 1024.0).toFixed(2) + "kb   "
+                  + reportMapCount[type]);
           }
+
+          trace(PREFIX, "Memory Usage Report:");
+          reportList.sort();
+          for(var i:int=0; i<reportList.length; i++)
+                trace(PREFIX, reportList[i]);
+          trace(PREFIX, " Total = " + (totalSize / 1024.0).toFixed(2) + "kb, churn = " + (churn / 1024.0).toFixed(2) + "kb, count = " + totalCount);
+          churn = 0;
       }
       
-      public var allocatedIdToType:Dictionary = new Dictionary();
+      public var churn:int = 0;
+      public var allocatedIdToTypeMap:Dictionary = new Dictionary();
       public var allocatedIdToNewSample:Dictionary = new Dictionary();
 
       private function grabSamples():void
@@ -105,19 +149,33 @@ package
          var samples:* = getSamples();
          for each (var s:Sample in samples)
          {
-             var ds:DeleteObjectSample = s as DeleteObjectSample;
-             var ns:NewObjectSample = s as NewObjectSample;
+            var ds:DeleteObjectSample = s as DeleteObjectSample;
             if (ds)
             {
-                delete allocatedIdToTypeMap[ns.id];
-                delete allocatedIdToNewSample[ns.id];
+                if(allocatedIdToNewSample[ds.id] == null)
+                {
+                    churn += ds.size;
+                    trace(PREFIX, "Got deletion for object that was never recorded: " + ds.id);
+                }
+                else if(allocatedIdToNewSample[ds.id].object == null)
+                {
+                    churn += ds.size;                    
+                }
+                
+                delete allocatedIdToTypeMap[ds.id];
+                delete allocatedIdToNewSample[ds.id];
             }
-            else if (ns)
+            
+            var ns:NewObjectSample = s as NewObjectSample;
+            if (ns)
             {
                // Get type and compensate for activation objects.
-               var typeKey:String = ns.type.toString();
+               var typeKey:String = ns.type ? ns.type.toString() : "[internal]";
                if(ns.stack && ns.stack[0].toString() == "[activation-object]()")
                     typeKey = "[activation-object]";
+
+               if(allocatedIdToNewSample[ns.id] != null)
+                   trace(PREFIX, "Got new sample for id " + ns.id + " twice.");
                
                allocatedIdToTypeMap[ns.id] = typeKey;
                allocatedIdToNewSample[ns.id] = ns;
