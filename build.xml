@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project name="PBLabsProfiler" default="dist" basedir=".">
+<project name="PBLabsProfiler" default="flashStub" basedir=".">
     <description>
         A utilitarian profiler for use with Flash. It works with the flash.sampler API.
     </description>
@@ -17,6 +17,12 @@
         
         <!-- Create the build directory structure used by compile -->
         <mkdir dir="${build}"/>
+    </target>
+
+    <target name="flashStub">
+        <exec dir="flashStub" executable="/Applications/Adobe Flash Builder 4.5/sdks/4.5.0/bin/mxmlc">
+            <arg line="-static-link-runtime-shared-libraries -debug Agent.as"/>
+        </exec>
     </target>
     
     <target name="compile" depends="init" description="compile the source ">
